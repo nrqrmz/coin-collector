@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>Coin Collector</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%; height: 100%; overflow: hidden;
+      background: #87ceeb;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color: #fff;
+      user-select: none; -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: none;
+    }
+    canvas { display: block; }
+
+    /* HUD */
+    #hud {
+      position: fixed; top: 0; left: 0; right: 0;
+      display: flex; justify-content: space-between; align-items: center;
+      padding: calc(12px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) 12px calc(16px + env(safe-area-inset-left));
+      font-size: clamp(18px, 5vw, 28px); font-weight: 800;
+      text-shadow: 0 2px 4px rgba(0,0,0,.35);
+      pointer-events: none;
+    }
+    #hud .pill {
+      background: rgba(0,0,0,.25); border-radius: 999px;
+      padding: 6px 16px; backdrop-filter: blur(4px);
+    }
+    #time.low { color: #ff6b6b; }
+
+    /* Texto flotante "+N" */
+    #popups { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+    .popup {
+      position: absolute; left: 50%; top: 40%;
+      transform: translate(-50%, 0);
+      font-size: clamp(24px, 7vw, 40px); font-weight: 900;
+      text-shadow: 0 2px 6px rgba(0,0,0,.5);
+      animation: rise .9s ease-out forwards;
+    }
+    @keyframes rise {
+      from { opacity: 1; transform: translate(-50%, 0) scale(1); }
+      to   { opacity: 0; transform: translate(-50%, -80px) scale(1.3); }
+    }
+
+    /* Pantallas */
+    .screen {
+      position: fixed; inset: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 16px; padding: 24px; text-align: center;
+      background: rgba(10, 20, 40, .55); backdrop-filter: blur(3px);
+    }
+    .screen.hidden { display: none; }
+    .screen h1 { font-size: clamp(32px, 10vw, 64px); line-height: 1.1; }
+    .screen p { font-size: clamp(15px, 4vw, 20px); opacity: .9; max-width: 32ch; }
+    .legend { display: flex; gap: 16px; font-weight: 700; font-size: clamp(14px, 4vw, 18px); }
+    .legend span::before {
+      content: ""; display: inline-block; width: .9em; height: .9em; border-radius: 50%;
+      margin-right: 6px; vertical-align: -2px; background: var(--c);
+    }
+    .btn {
+      font: inherit; font-size: clamp(20px, 6vw, 28px); font-weight: 800;
+      color: #3a2a00; background: linear-gradient(#ffe066, #f5b700);
+      border: 0; border-radius: 16px; padding: 14px 40px; cursor: pointer;
+      box-shadow: 0 6px 0 #b07f00, 0 10px 20px rgba(0,0,0,.3);
+    }
+    .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #b07f00; }
+    .hint-desktop { display: none; }
+
+    /* Joystick */
+    #joystick {
+      position: fixed;
+      left: calc(24px + env(safe-area-inset-left));
+      bottom: calc(24px + env(safe-area-inset-bottom));
+      width: 130px; height: 130px; border-radius: 50%;
+      background: rgba(255,255,255,.18); border: 3px solid rgba(255,255,255,.45);
+      touch-action: none;
+    }
+    #knob {
+      position: absolute; left: 50%; top: 50%;
+      width: 56px; height: 56px; margin: -28px 0 0 -28px; border-radius: 50%;
+      background: rgba(255,255,255,.85); box-shadow: 0 2px 8px rgba(0,0,0,.3);
+    }
+
+    @media (pointer: fine) {
+      #joystick { display: none; }
+      .hint-desktop { display: block; }
+      .hint-mobile { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div id="hud">
+    <div class="pill">🪙 <span id="score">0</span></div>
+    <div class="pill">⏱ <span id="time">60</span></div>
+  </div>
+  <div id="popups"></div>
+
+  <div id="joystick"><div id="knob"></div></div>
+
+  <div id="start-screen" class="screen">
+    <h1>Coin Collector</h1>
+    <p>Recoge todas las monedas que puedas en 60 segundos.</p>
+    <div class="legend">
+      <span style="--c:#cd7f32">Bronce 1</span>
+      <span style="--c:#c0c0c0">Plata 3</span>
+      <span style="--c:#ffd700">Oro 5</span>
+    </div>
+    <p class="hint-mobile">Muévete con el joystick.</p>
+    <p class="hint-desktop">Muévete con WASD o las flechas. Enter para empezar.</p>
+    <button id="play-btn" class="btn">Jugar</button>
+  </div>
+
+  <div id="over-screen" class="screen hidden">
+    <h1>¡Tiempo!</h1>
+    <p>Puntuación: <strong id="final-score">0</strong></p>
+    <p>Récord: <strong id="best-score">0</strong></p>
+    <button id="retry-btn" class="btn">Reintentar</button>
+  </div>
+
+  <script type="importmap">
+    { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js" } }
+  </script>
+  <script type="module" src="main.js"></script>
+</body>
+</html>
