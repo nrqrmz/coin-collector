@@ -17,6 +17,9 @@ const BITE_DIST = 1.0;
 const INVULN_TIME = 2;
 const CROC_STUN = 1.5;
 const SECOND_CROC_ATTEMPT = 15;
+const CROC_MIN_DIST = 2.2;  // distancia mínima entre cocodrilos
+const FLANK_OFFSET = 2;     // desplazamiento lateral del objetivo de los cocodrilos extra
+const FLANK_RANGE = 4;      // por debajo de esta distancia van directo al jugador
 
 // ---------- DOM ----------
 const $ = (id) => document.getElementById(id);
@@ -407,6 +410,55 @@ function bite(croc) {
   coins.scatter(player.root.position, amount);
 }
 
+// El primer cocodrilo va directo al jugador; los demás apuntan a un lado
+// (alternando izquierda/derecha) para flanquear en vez de ir en fila.
+const flankTarget = new THREE.Vector3();
+function crocTarget(croc, index) {
+  const p = player.root.position;
+  if (index === 0) return p;
+  const dx = p.x - croc.position.x;
+  const dz = p.z - croc.position.z;
+  const dist = Math.hypot(dx, dz);
+  if (dist < FLANK_RANGE) return p;
+  const side = index % 2 === 1 ? 1 : -1;
+  // Perpendicular a la línea cocodrilo → jugador
+  return flankTarget.set(p.x - (dz / dist) * FLANK_OFFSET * side, 0, p.z + (dx / dist) * FLANK_OFFSET * side);
+}
+
+// Evita que los cocodrilos se atraviesen: si dos están demasiado cerca,
+// empuja a cada uno la mitad del solapamiento en direcciones opuestas.
+function separateCrocs() {
+  for (let i = 0; i < crocs.length; i++) {
+    const a = crocs[i];
+    if (!a.root.visible) continue;
+    for (let j = i + 1; j < crocs.length; j++) {
+      const b = crocs[j];
+      if (!b.root.visible) continue;
+      let dx = b.position.x - a.position.x;
+      let dz = b.position.z - a.position.z;
+      let dist = Math.hypot(dx, dz);
+      if (dist >= CROC_MIN_DIST) continue;
+      if (dist < 1e-4) {
+        const angle = Math.random() * Math.PI * 2;
+        dx = Math.cos(angle);
+        dz = Math.sin(angle);
+        dist = 1;
+      }
+      const push = (CROC_MIN_DIST - Math.min(dist, CROC_MIN_DIST)) / 2;
+      const nx = dx / dist;
+      const nz = dz / dist;
+      a.position.x -= nx * push;
+      a.position.z -= nz * push;
+      b.position.x += nx * push;
+      b.position.z += nz * push;
+    }
+  }
+  for (const croc of crocs) {
+    croc.position.x = THREE.MathUtils.clamp(croc.position.x, -PLAY_LIMIT, PLAY_LIMIT);
+    croc.position.z = THREE.MathUtils.clamp(croc.position.z, -PLAY_LIMIT, PLAY_LIMIT);
+  }
+}
+
 function crocSpeed() {
   const attempt = save.attempts + 1;
   return BASE_SPEED * Math.min(0.85, 0.55 + 0.015 * (attempt - 1));
@@ -474,9 +526,12 @@ function update() {
 
     // Cocodrilos
     const speed = crocSpeed();
+    crocs.forEach((croc, i) => {
+      if (croc.root.visible) croc.update(dt, crocTarget(croc, i), speed, PLAY_LIMIT);
+    });
+    separateCrocs();
     for (const croc of crocs) {
       if (!croc.root.visible) continue;
-      croc.update(dt, player.root.position, speed, PLAY_LIMIT);
       if (croc.stun <= 0 && round.invuln <= 0) {
         const head = croc.headPosition();
         const p = player.root.position;
