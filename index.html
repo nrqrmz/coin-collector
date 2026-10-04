@@ -60,11 +60,15 @@
     /* ---------- Controles táctiles ---------- */
     #joystick {
       position: fixed;
-      left: calc(24px + env(safe-area-inset-left));
-      bottom: calc(24px + env(safe-area-inset-bottom));
+      left: calc(max(56px, 9vw) + env(safe-area-inset-left));
+      bottom: calc(max(72px, 11vh) + env(safe-area-inset-bottom));
       width: 130px; height: 130px; border-radius: 50%;
       background: rgba(255,255,255,.18); border: 3px solid rgba(255,255,255,.45);
       touch-action: none;
+    }
+    /* Zona táctil más grande que el círculo visible */
+    #joystick::before {
+      content: ""; position: absolute; inset: -30px; border-radius: 50%;
     }
     #knob {
       position: absolute; left: 50%; top: 50%;
@@ -73,8 +77,8 @@
     }
     #sprint-btn {
       position: fixed;
-      right: calc(28px + env(safe-area-inset-right));
-      bottom: calc(40px + env(safe-area-inset-bottom));
+      right: calc(max(56px, 9vw) + env(safe-area-inset-right));
+      bottom: calc(max(80px, 12vh) + env(safe-area-inset-bottom));
       width: 96px; height: 96px; border-radius: 50%;
       border: 3px solid rgba(255,255,255,.6);
       background: conic-gradient(rgba(255,224,102,.85) var(--p, 100%), rgba(0,0,0,.3) 0);

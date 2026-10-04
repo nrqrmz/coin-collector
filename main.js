@@ -157,6 +157,8 @@ function resetJoystick() {
 }
 
 ui.joystick.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  if (joystick.pointerId !== null) return; // ya hay un dedo controlándolo
   joystick.pointerId = e.pointerId;
   ui.joystick.setPointerCapture(e.pointerId);
   updateJoystick(e);
@@ -164,8 +166,12 @@ ui.joystick.addEventListener('pointerdown', (e) => {
 ui.joystick.addEventListener('pointermove', (e) => {
   if (e.pointerId === joystick.pointerId) updateJoystick(e);
 });
-ui.joystick.addEventListener('pointerup', resetJoystick);
-ui.joystick.addEventListener('pointercancel', resetJoystick);
+function endJoystick(e) {
+  if (e.pointerId === joystick.pointerId) resetJoystick();
+}
+ui.joystick.addEventListener('pointerup', endJoystick);
+ui.joystick.addEventListener('pointercancel', endJoystick);
+ui.joystick.addEventListener('lostpointercapture', endJoystick);
 
 ui.sprintBtn.addEventListener('pointerdown', (e) => {
   e.preventDefault();
